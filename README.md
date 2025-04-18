@@ -9,7 +9,6 @@ Below are some instructions for using the Python package:
 ## **For those who don't have Python installed:**
 
 If you don't have Python installed on your machine, you won't be able to use the package.
-%%If you do have Python installed (3.13 or later), go [here]%%
 
 #### **Install python**
 1. You can download the latest version of python from [Python.org](https://www.python.org/downloads/)
@@ -111,8 +110,6 @@ If you don't have Python installed on your machine, you won't be able to use the
 
 A virtual environment isolates dependencies, and lets you experiment without messing up your global python environment.
 Also, your global python installation will be probably be nested deep within your files, and you don't really want to move it, but the virtual environment can be kept close to where you are working, so you can easily access it any time.
-
-%%If you already have a virtual environment you want to use, or you want to use you global python environment (_Not Recommended_), go [here]%%
 
 1. Pick a directory for you new virtual environment:
     - It should be easy to find
