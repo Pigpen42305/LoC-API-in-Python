@@ -147,10 +147,6 @@ from locpy import *
     3. Creates 157 instances of the EntryData class
     4. Pickles the data in `DATA.pkl`
     5. Unpickles the data in `DATA.pkl` and exports the EntryData class
-> [!info]- Why do we pickle?
-> A pickle file is a serialized python object. We pickle and unpickle for two reasons:
-> - We make the pickle so you only have to get the full dataset once. If you import the package again, it will skip the setup and just unpickle `DATA.pkl`
-> - We pickle and unpickle on the first run to confirm that it works properly
 10. To confirm that it worked, run this:
 ```python
 print(EntryData)
