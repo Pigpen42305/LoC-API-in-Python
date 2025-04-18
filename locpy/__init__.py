@@ -1,17 +1,14 @@
-import os
+from .requirements_verify import main as verify
 
-FIRST_DIR = os.getcwd()
+verify() # Makes sure all requirements are met
+del verify
 
-try: 
-    from LoC_API import EntryData
-except Exception as Error:
-    print(repr(Error,file = open(os.path.join(os.path.dirname(__file__),'loc_error.txt'),'w')))
-    exit("AN ERROR OCCURRED")
+from .path_manager import *
 
-
-if os.getcwd() != FIRST_DIR:
-    os.chdir(FIRST_DIR)
-del os,FIRST_DIR
+from .LoC_API import main as run_LoC_setup
+EntryData = run_LoC_setup()
+del run_LoC_setup
+to_start()
 
 __all__ = [
     'EntryData',

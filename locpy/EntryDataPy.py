@@ -9,7 +9,7 @@ from typing import Any
 import json
 import xml.etree.ElementTree as ET
 from time import sleep
-from requests_verify import *
+import requests
 
 class ReprOverride(type):
     """A very simple metaclass to allow us to print the class itself"""
@@ -52,18 +52,18 @@ class EntryData(object,metaclass = ReprOverride):
         'SOME_PLACEHOLDER_KEY_TO_EXCLUDE',
     ]
 
-    _title_instances:dict[str,"EntryData"] = {} # maps titles to EntryData instances
-    _index_instances:dict[int,"EntryData"] = {} # maps indices to EntryData instances
-    _index_title    :dict[int,str]         = {} # maps indices to titles
+    title_instances:dict[str,"EntryData"] = {} # maps titles to EntryData instances
+    index_instances:dict[int,"EntryData"] = {} # maps indices to EntryData instances
+    index_title    :dict[int,str]         = {} # maps indices to titles
     i = 0
     
     # list of source json for pickling
     _json_data:list[dict] = []
 
     _printable:dict[str,dict] = {
-        "_title_instances":_title_instances,
-        "_index_instances":_index_instances,
-        "_index_title":_index_title
+        "title_instances":title_instances,
+        "index_instances":index_instances,
+        "index_title":index_title
     }
 
     def __new__(cls,jsonfile = None,*args):
@@ -128,11 +128,11 @@ class EntryData(object,metaclass = ReprOverride):
 
     def __class_getitem__(cls,key:int|str) -> list["EntryData"]:
 
-        if   isinstance(key,int): return cls._index_instances[key]
+        if   isinstance(key,int): return cls.index_instances[key]
         if   isinstance(key,str): 
-            try: return cls._title_instances[key]
+            try: return cls.title_instances[key]
             except KeyError:
-                for _key,inst in cls._title_instances.items():
+                for _key,inst in cls.title_instances.items():
                     if _key in key:
                         return inst
                 else:
@@ -206,9 +206,9 @@ class EntryData(object,metaclass = ReprOverride):
             raise FileNotFoundError(f"Could not find a file for {jsonfile = }")
 
         for instance in map(EntryData,jsondata['results']):
-            EntryData._title_instances[instance.name ] = instance
-            EntryData._index_instances[instance.index] = instance
-            EntryData._index_title[instance.index]     = instance.name
+            EntryData.title_instances[instance.name ] = instance
+            EntryData.index_instances[instance.index] = instance
+            EntryData.index_title[instance.index]     = instance.name
     
     def __setstate__(self,state):
         cls = EntryData
@@ -216,9 +216,9 @@ class EntryData(object,metaclass = ReprOverride):
             raise Exception(f"got an unexpected state!")
 
         for self in map(lambda x: cls(x,None),cls._json_data):
-            cls._title_instances[self.name ] = self
-            cls._index_instances[self.index] = self
-            cls._index_title[self.index]     = self.name
+            cls.title_instances[self.name ] = self
+            cls.index_instances[self.index] = self
+            cls.index_title[self.index]     = self.name
 
     def __reduce__(self):
         return (
@@ -327,10 +327,6 @@ class EntryData(object,metaclass = ReprOverride):
                 break
         else:
             raise KeyError("No key found")
-
-# if the requests module was not imported, removes the get_transcript method 
-if not REQUESTS_ENABLED:
-    delattr(EntryData,'get_transcript')
 
 if __name__ == '__main__':
    # Test code

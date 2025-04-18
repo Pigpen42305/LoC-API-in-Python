@@ -2,16 +2,14 @@
 This module contains the functions that will set up the files needed for the other modules
 """
 import json
-import os
 import time
-from requests_verify import *
+import requests
+from .path_manager import *
+from os import mkdir
+
 
 def get_loc_json():
     truestart = time.perf_counter()
-    DIR = os.getcwd()
-
-    if os.getcwd() != os.path.dirname(__file__): 
-        os.chdir(os.path.dirname(__file__))
 
     collection:str = 'https://www.loc.gov/collections/civil-rights-history-project/'
 
@@ -25,75 +23,45 @@ def get_loc_json():
         minutes,seconds = divmod(int(end - start),60)
         print(f"Page {num} completed in {minutes:01}:{seconds:02}")
 
-    if not os.path.exists("PAGES"): os.mkdir("PAGES")
-    
-    os.chdir("PAGES")
 
-    files = []
-    for index,data in enumerate(pages,1):
-        with open(f'{index}_page.json','w',encoding='utf-8') as file:
+    for index,data in enumerate(pages):
+        with open(PAGE_FILES[index],'w') as file:
             json.dump(data,file,indent=4)
-            files.append(f'{index}_page.json')
     
     trueend = time.perf_counter()
     minutes,seconds = divmod(int(trueend - truestart),60)
-    print(f"{len(files)} json files saved in {minutes:01}:{seconds:02}")
-    os.chdir(DIR)
-    return files
+    print(f"7 json files saved in {minutes:01}:{seconds:02}")
+
 
 def short_page(jsonfile,*save_keys):
-
-    if isinstance(jsonfile,list):
-        outputs = []
-        for JSONFILE in jsonfile:
-            outputs.append(short_page(JSONFILE,*save_keys))
-        return outputs
         
+    for index,jsonfile in enumerate(PAGE_FILES):
+        with open(jsonfile,'r') as file:
+            data:dict = json.load(file)
+        
+        delete_keys = set(data.keys()) - set(save_keys)
+        for key in delete_keys: del data[key]
+        
+        with open(SHORT_PAGE_FILES[index],'w') as file:
+            json.dump(data,file,indent=4)
 
-    DIR = os.getcwd()
-    if os.getcwd() != os.path.dirname(__file__): 
-        os.chdir(os.path.dirname(__file__))
-    
-    if not os.path.exists("PAGES"): raise FileNotFoundError("NO PAGES FOLDER FOUND IN SCRIPT DIRECTORY")
-    os.chdir("PAGES")
+        print(f'_{index + 1}_page.json was saved!')
 
-    with open(jsonfile,'r',encoding='utf-8') as file:
-        data:dict = json.load(file)
-    
-    delete_keys = set(data.keys()) - set(save_keys)
+def MAIN(*significant_keys):
+    if len(significant_keys) == 0: significant_keys = ('results',)
 
-    for key in delete_keys:
-        del data[key]
-    
-    with open(f'_{jsonfile}','w',encoding='utf-8') as file:
-        json.dump(data,file,indent=4)
+    try:
+        to_pages()
+    except FileNotFoundError:
+        mkdir("PAGES")
+        get_loc_json()
+        to_pages()
+    except Exception as Error:
+        log_error(Error)
+        raise
 
-    os.chdir(DIR)
-    print(f'_{jsonfile} was saved!')
-    return f'_{jsonfile}'
-
-def MAIN():
-    significant_keys = (
-        'results',
-    )
-
-    DIR = os.getcwd()
-    if os.getcwd() != os.path.dirname(__file__): 
-        os.chdir(os.path.dirname(__file__))
-
-    if not os.path.exists("PAGES") and REQUESTS_ENABLED: 
-        filelist = get_loc_json()
-        os.chdir("PAGES")
-    elif os.path.exists("PAGES"):
-        os.chdir("PAGES")
-        filelist = os.listdir()
-    else:
-        raise ModuleNotFoundError("First run requires the requests module!")
-
-    for jsonpath in filter(lambda x: not x.startswith('_'),filelist):
-        short_page(jsonpath,*significant_keys)
-    
-    os.chdir(DIR)
+    short_page(PAGE_FILES,*significant_keys)
+    to_start()
 
 if __name__ == '__main__': MAIN()
   
