@@ -316,7 +316,8 @@ class EntryData(object,metaclass = ReprOverride):
         if mode.lower() == 'r': 
             return self_or_cls.read_transcript(filename)
         elif mode.lower() == 'w': 
-            return self_or_cls.get_transcript(filename)
+            self_or_cls.get_transcript(filename)
+            return self_or_cls.open(filename)
         else:
             Error = ValueError("Unexpected mode argument for EntryData.open call:")
             Error.add_note(f"Expected 'r' or 'w', but got {mode = }")
