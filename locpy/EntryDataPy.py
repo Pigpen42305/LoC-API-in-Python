@@ -136,7 +136,7 @@ class EntryData(object,metaclass = ReprOverride):
             try: return cls.title_instances[key]
             except KeyError:
                 for _key,inst in cls.title_instances.items():
-                    if _key in key:
+                    if key.lower() in _key.lower():
                         return inst
                 else:
                     raise
@@ -266,13 +266,23 @@ class EntryData(object,metaclass = ReprOverride):
         @classmethod
         def _save_transcript(cls,xml:bytes,filename:str) -> None:
             text,encoding = cls.process_xml(xml)
-            with open(filename,'w',encoding=encoding,errors='backslashreplace') as file:
-                print(
-                    f"FILE ENCODED IN: {repr(encoding)}\n\n\n",
-                    cls.decoder(text,encoding),
-                    sep='',
-                    file=file,
-                )
+            with open(filename,'w',encoding='utf_8',errors='backslashreplace') as file:
+                print(encoding,end='',file=file) # Write the encoding in utf_8 first
+                if encoding == 'utf_8': # If the encoding is utf_8, write the rest now
+                    print(
+                        '\n\n\n',
+                        cls.decoder(text,encoding),
+                        sep='',
+                        file=file,
+                    )
+            if encoding != 'utf_8': # If the encoding is not utf_8, reopen and write the rest
+                with open(filename,'a',encoding=encoding,errors='backslashreplace') as file:
+                    print(
+                        '\n\n\n',
+                        cls.decoder(text,encoding),
+                        sep='',
+                        file=file,
+                    )
 
     def get_transcript(self,file:PathLike|str):
         cls = EntryData
@@ -284,6 +294,19 @@ class EntryData(object,metaclass = ReprOverride):
                 return helpers._save_transcript(resp.content,file)
         else:
             raise KeyError("No key found")
+
+    @staticmethod
+    def read_transcript(filename:PathLike|str) -> TextIOWrapper:
+        file = open(filename,'r',encoding = 'utf_8')
+        encoding = file.readline().strip()
+        if encoding != 'utf_8':
+            file.reconfigure(encoding=encoding,errors='backslashreplace')
+        file.seek(0)
+        return file
+
+    @staticmethod
+    def open(filename:PathLike|str): return EntryData.read_transcript(filename)
+          
 
 if __name__ == '__main__':
    # Test code
