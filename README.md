@@ -165,7 +165,7 @@ print(EntryData)
     }
 }
 ```
-12. If you have internet connection, paste this into the python shell:
+12. If you have internet connection, paste this into the python shell to try printing a transcript:
 ```python
 from locpy import EntryData # Imports EntryData after setting up
 
