@@ -86,7 +86,6 @@ def _final():
         Unpickler(open(DATA_PKL,'rb')).load()
     except Exception as Error: # If an exception occurs at this point, we are cooked. Create an error.txt and raise the exception
         log_error(Error)
-        raise
     else:
         print("Unpickling complete!")
     

@@ -58,7 +58,6 @@ def MAIN(*significant_keys):
         to_pages()
     except Exception as Error:
         log_error(Error)
-        raise
 
     short_page(PAGE_FILES,*significant_keys)
     to_start()

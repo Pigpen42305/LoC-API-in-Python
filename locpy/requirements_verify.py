@@ -35,7 +35,6 @@ def verify_requirements_met() -> bool:
 
     installed = [item.split()[0] for item in result.stdout.decode().split('\r\n')[2:-1]]
 
-    needed = []
     with open(requirements,'r') as reqs:
         for requirement in reqs:
             req = requirement.partition('==')[0]

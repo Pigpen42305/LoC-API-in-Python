@@ -55,6 +55,8 @@ def log_error(error:Exception|None,bytedata:bytes|None = None,encoding:str|None 
             if bytedata is not None:
                 print("SAVED DATA:\n",file=ErrorFile)
                 print(bytedata.decode(encoding_type),file=ErrorFile)
+        
+        raise error
 
 
 

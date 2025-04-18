@@ -134,15 +134,12 @@ class EntryData(object,metaclass = ReprOverride):
         if   isinstance(key,int): return cls.index_instances[key]
         if   isinstance(key,str): 
             try: return cls.title_instances[key]
-            except KeyError:
+            except KeyError as Error:
                 for _key,inst in cls.title_instances.items():
                     if key.lower() in _key.lower():
                         return inst
                 else:
                     raise
-        Error = TypeError(f"Indexes must be type str or type int, not {type(key)}")
-        log_error(Error)
-        raise Error
 
     @staticmethod
     def _get_entries(jsonfile:TextIOWrapper|PathLike|str):
@@ -293,20 +290,37 @@ class EntryData(object,metaclass = ReprOverride):
                 sleep(2)
                 return helpers._save_transcript(resp.content,file)
         else:
-            raise KeyError("No key found")
+            Error = KeyError("No key found")
+            Error.add_note(json.dumps(self.json,indent=4))
+            log_error(Error)
 
     @staticmethod
     def read_transcript(filename:PathLike|str) -> TextIOWrapper:
-        file = open(filename,'r',encoding = 'utf_8')
+        try: 
+            file = open(filename,'r',encoding = 'utf_8')
+        except FileNotFoundError as Error:
+            Error.add_note(f"Current working directory = {getcwd()}")
+            Error.add_note(f"{filename = }")
+            log_error(Error)
         encoding = file.readline().strip()
         if encoding != 'utf_8':
             file.reconfigure(encoding=encoding,errors='backslashreplace')
         file.seek(0)
         return file
-
-    @staticmethod
-    def open(filename:PathLike|str): return EntryData.read_transcript(filename)
-          
+    
+    def open(
+        self_or_cls:"EntryData"|type["EntryData"],
+        filename:PathLike|str,
+        mode:str = 'r',
+        ):
+        if mode.lower() == 'r': 
+            return self_or_cls.read_transcript(filename)
+        elif mode.lower() == 'w': 
+            return self_or_cls.get_transcript(filename)
+        else:
+            Error = ValueError("Unexpected mode argument for EntryData.open call:")
+            Error.add_note(f"Expected 'r' or 'w', but got {mode = }")
+            log_error(Error)
 
 if __name__ == '__main__':
    # Test code
