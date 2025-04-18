@@ -10,6 +10,7 @@ import json
 import xml.etree.ElementTree as ET
 from time import sleep
 import requests
+from .path_manager import *
 
 class ReprOverride(type):
     """A very simple metaclass to allow us to print the class itself"""
@@ -126,7 +127,8 @@ class EntryData(object,metaclass = ReprOverride):
         try                  : return f'EntryData({self.index})'
         except AttributeError: return f'<EntryData object at {id(self)}>'
 
-    def __class_getitem__(cls,key:int|str) -> list["EntryData"]:
+    @classmethod
+    def entry(cls,key:int|str) -> "EntryData":
 
         if   isinstance(key,int): return cls.index_instances[key]
         if   isinstance(key,str): 
@@ -137,7 +139,9 @@ class EntryData(object,metaclass = ReprOverride):
                         return inst
                 else:
                     raise
-        raise TypeError(f"Indexes must be type str or type int, not {type(key)}")
+        Error = TypeError(f"Indexes must be type str or type int, not {type(key)}")
+        log_error(Error)
+        raise Error
 
     @classmethod
     def _file_from_int(cls,index:int,*deeper_path,check_existence:bool = False,use_cwd:bool = True) -> str:
@@ -232,9 +236,9 @@ class EntryData(object,metaclass = ReprOverride):
         def extract_text(element:ET.Element):
             text = element.text if element.text else ""
             for child in element:
-                text += EntryData._transcript_helpers.extract_text(child)
+                text = text + EntryData._transcript_helpers.extract_text(child)
                 if child.tail:
-                    text += child.tail
+                    text = text + child.tail
             return text.strip()
         
         @staticmethod
@@ -297,13 +301,8 @@ class EntryData(object,metaclass = ReprOverride):
                 resp.encoding = 'utf-8'
                 try: 
                     root = ET.fromstring(resp.text)
-                except ET.ParseError:
-                    if '<title>Service-Unavailable -- 503 -- Library of Congress</title>' in resp.text:
-                        raise ConnectionError("The LoC site returned an error!")
-                    with open('error.txt','w') as error:
-                        print(resource,file=error)
-                        print(resp.text,file=error)
-                    raise
+                except ET.ParseError as Error:
+                    log_error(Error,resp.content)
                 plain_text = helpers.extract_text(root)
                 plain_text = helpers.post_process(plain_text)
                 if remove_times: plain_text = helpers.remove_times(plain_text)
@@ -322,7 +321,7 @@ class EntryData(object,metaclass = ReprOverride):
                         with open(file,'w',encoding='windows-1252') as file:
                             print(plain_text,file=file)
                     except Exception as Error:
-                        helpers.save_backup(plain_text,Error)
+                        log_error(bytes(plain_text))
                         raise
                 break
         else:

@@ -90,13 +90,13 @@ def _final():
     else:
         print("Unpickling complete!")
     
-    print("LoC_API.main() HAS FINISHED SETTING UP!")
+    print("LoC_API._main() HAS FINISHED SETTING UP!")
     return EntryData # Return the class
 
 def main():
     _main()
     EntryData = _final()
-    print("LoC_API prepared!")
+    print("EntryData prepared!")
     return EntryData
 
 if __name__ == '__main__': main()
