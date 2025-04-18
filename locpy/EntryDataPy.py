@@ -7,7 +7,8 @@ from os import PathLike, path, getcwd
 from types import NoneType
 from typing import Any
 import json
-import xml.etree.ElementTree as ET
+import re
+from charset_normalizer.api import from_bytes
 from time import sleep
 import requests
 from .path_manager import *
@@ -143,59 +144,6 @@ class EntryData(object,metaclass = ReprOverride):
         log_error(Error)
         raise Error
 
-    @classmethod
-    def _file_from_int(cls,index:int,*deeper_path,check_existence:bool = False,use_cwd:bool = True) -> str:
-        "Returns the name of the file at that index. Note that the files are indexed 1 to n.\n" + \
-        "This method make no checks for file existence by default, but index must be > 0, with type of int.\n" + \
-        "If check_existance is True, then return a 2-tuple of the filename and the file's existence\n- " + \
-        "use_cwd      : use the cwd as the start of the path\n- " + \
-        "*deeper_path : add more steps to the path"
-
-        if not isinstance(index,int): raise TypeError("index must be of type int")
-        if index <= 0: raise IndexError("File list indexes must be greater than 0")
-
-        result:bool|None = None
-
-        if check_existence: 
-
-            pathlist = []
-            if use_cwd: pathlist.append(getcwd())
-            pathlist.extend(deeper_path)
-            pathlist.append(f"_{index}_page.json")
-            filename = path.join(pathlist)
-
-            del pathlist
-
-            result = path.exists(filename)
-
-        if result is None: return f"_{index}_page.json"
-
-        return filename,result
-    
-    @classmethod
-    def _int_from_file(cls,filename:str|PathLike,check_existence:bool = False) -> int|tuple[int,bool]:
-        "Returns the index of the file given. filenames must be in the following format:\n" + \
-        "f'_{index}_page.json' and the index must be > 0\n" + \
-        "If check_existence is True, return a 2-tuple of the index and the existence of the file"
-
-        if not isinstance(filename,(PathLike,str)): raise TypeError("filename must be of type str or PathLike")
-
-        if check_existence: result = path.exists(filename)
-        else: result = None
-
-        try:
-
-            index = int(path.basename(filename).removeprefix('_').removesuffix('_page.json'))
-            if index <= 0: raise ValueError("file indexes must be greater than 0")
-
-        except ValueError as Error:
-
-            Error.add_note(f"{filename = } is an invalid filename")
-            raise
-
-        if result is None: return index
-        return index,result
-
     @staticmethod
     def _get_entries(jsonfile:TextIOWrapper|PathLike|str):
 
@@ -232,98 +180,108 @@ class EntryData(object,metaclass = ReprOverride):
         )
     
     class _transcript_helpers:
-        @staticmethod
-        def extract_text(element:ET.Element):
-            text = element.text if element.text else ""
-            for child in element:
-                text = text + EntryData._transcript_helpers.extract_text(child)
-                if child.tail:
-                    text = text + child.tail
-            return text.strip()
-        
-        @staticmethod
-        def post_process(text:str):
-            text = text.replace('[interposing]','\x00').replace('[phonetic]','\x01')
-
-            text = text.replace('[','\x03').replace(']','\x03')
-
-            text = text.replace('\x00','[interposing]').replace('\x01','[phonetic]')
-
-            textlist = text.split('\x03')
-            for index,item in enumerate(textlist):
-                if 'START ' in item or 'END ' in item:
-                    textlist[index] = ''
-            del textlist[0],textlist[-1]
-            text = ''.join(textlist)
-
-            textlist = text.replace('\n      00','\x00\x01').split('\x00')
-            for index,item in enumerate(textlist):
-                if '\x01' in item:
-                    textlist[index] = item[3:]
-            text = '\n'.join(textlist)
-            return text
-        
-        @staticmethod
-        def remove_times(text:str):
-            textlist = text.split('\n')
-            for index,item in enumerate(textlist):
-                if len(item) < 9: continue
-                if (timestamp := item[:9]).strip().replace(':','').isdigit():
-                    textlist[index] = item.replace(timestamp,'')
-            return '\n'.join(textlist)
-        
-        @staticmethod
-        def add_breaks(text:str):
-            textlist = text.split('\n')
-            for index,item in enumerate(textlist):
-                if len(item) < 4: continue
-                if ':  ' in item and item[:item.find(':  ')].isupper():
-                    textlist[index] = '\n' + item
-            return '\n'.join(textlist)
 
         @staticmethod
-        def save_backup(text:str,error:Exception):
-            with open('transcript_backup.txt','w',encoding='utf-8') as file:
-                print('SCRIPT ERROR START',repr(error),'SCRIPT ERROR END',sep='\n',end='\n\n\n\n\n',file=file)
-                print(text,file=file)
+        def process_xml(data:bytes) -> tuple[bytes,str]:
+            
+            patterns = {
+                'tags':br'<[^>]+>',          # Removes xml tags
+                'page':br'(0{2}\d{2})',      # Removes page indicators
+                'time':br'\n\d\d:\d\d:\d\d', # Removes timestamps
+                'file':br'\[[^\]]+\]',       # Finds anything in square brackets
+            }
 
-    def get_transcript(self,*,
-                       remove_times:bool = True,
-                       add_lines_for_turns:bool = True,
-                       file:TextIOWrapper|PathLike|str|None = None,
-                       ):
+            # Remove matches to the removal patterns
+            for pattern,target in patterns.items():
+                if pattern == 'file':
+                    bracketed = set(re.findall(target,data))                      # Make a set of items that are in bracketed
+                    file_changes = filter(lambda x:b'_' in x,bracketed)           # Filter out transcript context marks, leaving file change markers
+                    for element in file_changes: data = data.replace(element,b'') # Remove file change markers
+                else:
+                    data = re.sub(target,b'',data)
+
+            # Remove the HTML comment at the top
+            data = data.replace(b'-->',b'',1)
+            data = data[data.find(b'-->') + 3:]
+
+            # Remove leading and trailing whitespace
+            data = data.strip()
+
+            # Gather up the names, and mark with \x00 at the start, and sort
+            names = set()
+            for line in data.split(b'\n'):
+                if b':' in line:
+                    name = line.strip().partition(b':')[0] + b': '
+                    if name.isupper():
+                        names.add(b'\x00' + name)
+            names = sorted(list(names),key=len)
+            for name in names:
+                for char in {b'. ',b'? ',b', ',b'! ',b'\n'}:
+                    data = data.replace(char + name[1:],char.strip() + name)
+
+            # Remove all remaining newlines
+            data = data.replace(b'\n',b'')
+
+            # Replace the \x00 marks to separate by conversation turns
+            data = data.replace(b'\x00',b'\n\n')
+
+            # Remove all repeated spaces
+            while b'  ' in data:
+                data = data.replace(b'  ',b' ')
+
+            # Clean up before trimming
+            data = data.strip()
+
+            # Trim metadata
+            datalist = data.split(b'\n')
+            del datalist[0:2]
+            
+            # Separate the final line by 'sentences'.
+            # Remove any improper sentences to trim metadata 
+            def filtering(data:tuple[int,bytes]):
+                i,x = data
+                conditions = [
+                    not x.endswith(b'Inc'),
+                    (x.startswith(b' ') or i == 0),
+                    not (x.isupper() and x.islower()),
+                    b'www' not in x,
+                ]
+                return all(conditions)
+            finalline = datalist[-1].split(b'.')
+            final = dict(filter(filtering,enumerate(finalline)))
+
+            # Reconnect the data
+            datalist[-1] = b'.'.join(final.values()) + b'.'
+            data = b'\n'.join(datalist)
+
+            return (data,from_bytes(data)[0].encoding)
+
+        @staticmethod
+        def decoder(content:bytes,encoding:str) -> str: 
+            return content.decode(
+                encoding=encoding,
+                errors='backslashreplace'
+            )
+
+        @classmethod
+        def _save_transcript(cls,xml:bytes,filename:str) -> None:
+            text,encoding = cls.process_xml(xml)
+            with open(filename,'w',encoding=encoding,errors='backslashreplace') as file:
+                print(
+                    f"FILE ENCODED IN: {repr(encoding)}\n\n\n",
+                    cls.decoder(text,encoding),
+                    sep='',
+                    file=file,
+                )
+
+    def get_transcript(self,file:PathLike|str):
         cls = EntryData
         helpers = cls._transcript_helpers
         for resource in self.json['resources']:
             if 'transcript' in resource['caption']:
                 resp = requests.get(resource["fulltext"])
                 sleep(2)
-                resp.encoding = 'utf-8'
-                try: 
-                    root = ET.fromstring(resp.text)
-                except ET.ParseError as Error:
-                    log_error(Error,resp.content)
-                plain_text = helpers.extract_text(root)
-                plain_text = helpers.post_process(plain_text)
-                if remove_times: plain_text = helpers.remove_times(plain_text)
-                if add_lines_for_turns: plain_text = helpers.add_breaks(plain_text)
-                plain_text = plain_text.replace('\n\n\n','\n\n')
-                if file is None:
-                    return plain_text
-                elif isinstance(file,TextIOWrapper):
-                    try: 
-                        print(plain_text,file = file)
-                    except Exception as Error: 
-                        helpers.save_backup(plain_text,Error)
-                        raise
-                elif isinstance(file,(str,PathLike)):
-                    try:
-                        with open(file,'w',encoding='windows-1252') as file:
-                            print(plain_text,file=file)
-                    except Exception as Error:
-                        log_error(bytes(plain_text))
-                        raise
-                break
+                return helpers._save_transcript(resp.content,file)
         else:
             raise KeyError("No key found")
 
