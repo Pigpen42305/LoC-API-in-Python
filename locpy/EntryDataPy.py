@@ -148,11 +148,11 @@ class EntryData(object,metaclass = ReprOverride):
             jsonfile.seek(0)
             jsondata:dict = json.load(jsonfile)
         elif isinstance(jsonfile,(PathLike,str)) and path.exists(jsonfile):
-            with open(jsonfile,'r',encoding='utf-8') as file:
+            with open(jsonfile,'r') as file:
                 jsondata:dict = json.load(file)
             del file
         else:
-            raise FileNotFoundError(f"Could not find a file for {jsonfile = }")
+            log_error(FileNotFoundError(f"Could not find a file for {jsonfile = }"))
 
         for instance in map(EntryData,jsondata['results']):
             EntryData.title_instances[instance.name ] = instance
