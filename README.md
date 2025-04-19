@@ -14,10 +14,10 @@ If you don't have Python installed on your machine, you won't be able to use the
 1. You can download the latest version of python from [Python.org](https://www.python.org/downloads/)
 2. If you are not using windows, I recommend that you find a YouTube tutorial, as I am a windows user. For windows users:
     1. Locate the .exe file and open it.
-     ![[python_exe_file.png]]
+     ![Picture of the python installer in the File Explorer](images/python_exe_file.png)
     2. Follow the directions in the installer. (Make sure to check 'Add python.exe to PATH') and pick Install Now
         - You may need to use admin privileges
-        ![[python_exe_running.png|400]]
+        ![Picture of the python installer for version 3.13.3 running](images/python_exe_running.png)
 3. Open your terminal. To verify that python and pip is installed properly do the following:
     - Test the commands that invoke the interpreter (Any of the below)
     ```powershell
