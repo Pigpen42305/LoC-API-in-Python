@@ -105,12 +105,8 @@ class EntryData(object,metaclass = ReprOverride):
         self.metadata = getattr(self,'item', None) # type:dict[str,list[str]|str]|NoneType
     
     def __iter__(self): return self.json.keys()
-        
-    def __setitem__(self,key,value): self.json[key] = value
-    
+            
     def __getitem__(self,key): return self.json[key]
-
-    def __delitem__(self,key): del self.json[key]
     
     def keys(self): return self.json.keys()
     
@@ -118,14 +114,14 @@ class EntryData(object,metaclass = ReprOverride):
     
     def items(self): return self.json.items()
 
-    def make_json(self): json.dump(self.json,open('check.json','w'),indent=4)
+    def make_json(self,filename): json.dump(self.json,open(filename,'w'),indent=4)
     
     def __str__(self):
         try                  : return f"EntryData[{self.index}] is: {self.name}"
         except AttributeError: return repr(self)
     
     def __repr__(self):
-        try                  : return f'EntryData({self.index})'
+        try                  : return f'EntryData.entry({self.index})'
         except AttributeError: return f'<EntryData object at {id(self)}>'
 
     @classmethod
@@ -290,7 +286,7 @@ class EntryData(object,metaclass = ReprOverride):
                 sleep(2)
                 return helpers._save_transcript(resp.content,file)
         else:
-            Error = KeyError("No key found")
+            Error = KeyError(f"No transcript found for {self}")
             Error.add_note(json.dumps(self.json,indent=4))
             log_error(Error)
 
@@ -311,18 +307,18 @@ class EntryData(object,metaclass = ReprOverride):
     def open(
         self_or_cls:"EntryData"|type["EntryData"],
         filename:PathLike|str,
-        mode:str = 'r',
+        get_new:bool = False,
         ):
-        if mode.lower() == 'r': 
-            return self_or_cls.read_transcript(filename)
-        elif mode.lower() == 'w': 
+        if not isinstance(get_new,bool):
+            log_error(TypeError(f"get_new should be of type bool, not {type(get_new)}"))
+        if get_new:
+            if not isinstance(self_or_cls,EntryData):
+                log_error(AttributeError("You cannot call EntryData.open on the class if get_new is set to True"))
             self_or_cls.get_transcript(filename)
             return self_or_cls.open(filename)
         else:
-            Error = ValueError("Unexpected mode argument for EntryData.open call:")
-            Error.add_note(f"Expected 'r' or 'w', but got {mode = }")
-            log_error(Error)
-
+            return self_or_cls.read_transcript(filename)
+        
 if __name__ == '__main__':
    # Test code
    pass

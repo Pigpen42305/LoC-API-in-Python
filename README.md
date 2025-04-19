@@ -180,3 +180,47 @@ with Entry.open("test.txt",'w') as file:
 
 
 ```
+---
+
+## **Useful Documentation**
+
+The instances of `EntryData` have many methods:
+- `__iter__`: Allows iteration over the keys in the json data
+```python
+from locpy import EntryData
+
+Entry = EntryData.entry(1)
+
+print(*list(Entry))
+```
+    Will print:
+```text
+access_restricted aka campaigns contributor date dates digitized extract_timestamp group hassegments id image_url index item language location mime_type number number_carrier_type number_former_id number_lccn number_source_modified online_format original_format partof resources segments shelf_id site subject timestamp title type url
+
+```
+- `__getitem__`: Accesses a value in the json
+```python
+from locpy import EntryData
+
+Entry = EntryData.entry(1)
+
+print(Entry['location'])
+```
+    Will print:
+```
+["United States", "New York (N.Y.)"]
+
+```
+- `keys`, `values`, and `items`: Calls these `dict` methods on the json
+- `make_json`: Writes the instance's json to the given filename.
+- `__str__`: Prints the instance's index and name (title)
+- `__repr__`: Prints `EntryData.entry(<index of instance>)`
+- `entry`: Given part of a title or an integer, returns the associated instance
+- `get_transcript`: When called on an instance, saves the associated transcript to the given filename. If the file does not exist, it is created. If the file already exists, it is wiped upon opening.
+- `read_transcript`: Given a filename, opens that file for reading. It reads the first line to get the encoding, then reconfigures it if neccessary. Returns an open file.
+- `open`: This is `EntryData.open`, not to be confused with `io.open`, the builtin function. `EntryData.open` takes 3 arguments:
+    1. self_or_cls: If you called it like `EntryData.open()`, this is set to the class. If you call it on an instance `Entry.open()`, this is set to that instance. You must call on an instance to get a transcript with this method.
+    2. filename: The name of the file you want to interact with
+    3. get_new: Defaults to False:
+        - If False: This is the same as calling `EntryData.read_transcript(filename)`
+        - If True: Calls `self_or_cls.get_transcript(filename)` to save a transcript, then calls `EntryData.read_transcript(filename)` to return a open file in reading mode.
