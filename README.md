@@ -193,7 +193,7 @@ Entry = EntryData.entry(1)
 
 print(*list(Entry))
 ```
-    Will print:
+Will print:
 ```text
 access_restricted aka campaigns contributor date dates digitized extract_timestamp group hassegments id image_url index item language location mime_type number number_carrier_type number_former_id number_lccn number_source_modified online_format original_format partof resources segments shelf_id site subject timestamp title type url
 
@@ -206,7 +206,7 @@ Entry = EntryData.entry(1)
 
 print(Entry['location'])
 ```
-    Will print:
+Will print:
 ```
 ["United States", "New York (N.Y.)"]
 
