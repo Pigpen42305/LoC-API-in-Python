@@ -2,7 +2,7 @@
 This module defines the EntryData class, and is required to unpickle the data in DATA.pkl
 To implement new features, define ne
 """
-from io import TextIOWrapper
+from io import TextIOWrapper,BytesIO
 from os import PathLike, path, getcwd
 from types import NoneType
 from typing import Any
@@ -61,6 +61,8 @@ class EntryData(object,metaclass = ReprOverride):
     
     # list of source json for pickling
     _json_data:list[dict] = []
+
+    DEFAULT_LENGTH:int = 50
 
     _printable:dict[str,dict] = {
         "title_instances":title_instances,
@@ -257,8 +259,10 @@ class EntryData(object,metaclass = ReprOverride):
             )
 
         @classmethod
-        def _save_transcript(cls,xml:bytes,filename:str) -> None:
+        def _save_transcript(cls,xml:bytes,filename:str,length:int) -> None:
             text,encoding = cls.process_xml(xml)
+            text = cls.format_lines(text,length)
+
             with open(filename,'w',encoding='utf_8',errors='backslashreplace') as file:
                 print(encoding,end='',file=file) # Write the encoding in utf_8 first
                 if encoding == 'utf_8': # If the encoding is utf_8, write the rest now
@@ -276,15 +280,55 @@ class EntryData(object,metaclass = ReprOverride):
                         sep='',
                         file=file,
                     )
+        
+        @classmethod
+        def format_lines(cls,data:bytes,length:int) -> bytes:
+            output = BytesIO()
+            databuffer = BytesIO(data)
 
-    def get_transcript(self,file:PathLike|str):
+            for i,line in enumerate(databuffer):
+                if line == b'\n':
+                    output.write(line)
+                else:
+                    name,sep,text = line.partition(b': ')
+                    name = name + sep
+                    output.write(cls.limit_line(text,length,name))
+            output.seek(0)
+            return output.read()
+
+        @classmethod
+        def limit_line(cls,line:bytes,length:int,name:bytes) -> bytes:
+            words = line.split(b' ')
+            for index in cls.findsplit(words,length):
+                words[index] = words[index] + b'\n' + (b' ' * (len(name) - 1))
+            words[0] = name + words[0]
+            return b' '.join(words)
+        
+        @staticmethod
+        def findsplit(words:list[bytes],length:int) -> list[int]:
+            words = map(len,words)
+            building = 0
+            count = 0
+            indices = []
+            for index,word in enumerate(words):
+                building += word
+                count += 1
+                if building + (count - 1) >= length:
+                    count = 1
+                    indices.append(index - 1)
+                    building = word
+            return indices
+
+
+
+    def get_transcript(self,file:PathLike|str,length:int = DEFAULT_LENGTH):
         cls = EntryData
         helpers = cls._transcript_helpers
         for resource in self.json['resources']:
             if 'transcript' in resource['caption']:
                 resp = requests.get(resource["fulltext"])
                 sleep(2)
-                return helpers._save_transcript(resp.content,file)
+                return helpers._save_transcript(resp.content,file,length)
         else:
             Error = KeyError(f"No transcript found for {self}")
             Error.add_note(json.dumps(self.json,indent=4))
@@ -308,13 +352,14 @@ class EntryData(object,metaclass = ReprOverride):
         self_or_cls,
         filename:PathLike|str,
         get_new:bool = False,
+        length:int = DEFAULT_LENGTH,
         ):
         if not isinstance(get_new,bool):
             log_error(TypeError(f"get_new should be of type bool, not {type(get_new)}"))
         if get_new:
             if not isinstance(self_or_cls,EntryData):
                 log_error(AttributeError("You cannot call EntryData.open on the class if get_new is set to True"))
-            self_or_cls.get_transcript(filename)
+            self_or_cls.get_transcript(filename,length)
             return self_or_cls.open(filename)
         else:
             return self_or_cls.read_transcript(filename)
