@@ -305,7 +305,7 @@ class EntryData(object,metaclass = ReprOverride):
         return file
     
     def open(
-        self_or_cls:"EntryData"|type["EntryData"],
+        self_or_cls,
         filename:PathLike|str,
         get_new:bool = False,
         ):
@@ -322,6 +322,3 @@ class EntryData(object,metaclass = ReprOverride):
 if __name__ == '__main__':
    # Test code
    pass
-
-
-
