@@ -62,7 +62,7 @@ class EntryData(object,metaclass = ReprOverride):
     # list of source json for pickling
     _json_data:list[dict] = []
 
-    DEFAULT_LENGTH:int = 50
+    DEFAULT_LENGTH:int = 125
 
     _printable:dict[str,dict] = {
         "title_instances":title_instances,
