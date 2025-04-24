@@ -259,9 +259,10 @@ class EntryData(object,metaclass = ReprOverride):
             )
 
         @classmethod
-        def _save_transcript(cls,xml:bytes,filename:str,length:int) -> None:
+        def _save_transcript(cls,xml:bytes,filename:str,length:int|None) -> None:
             text,encoding = cls.process_xml(xml)
-            text = cls.format_lines(text,length)
+            if length is not None:
+                text = cls.format_lines(text,length)
 
             with open(filename,'w',encoding='utf_8',errors='backslashreplace') as file:
                 print(encoding,end='',file=file) # Write the encoding in utf_8 first
@@ -319,9 +320,7 @@ class EntryData(object,metaclass = ReprOverride):
                     building = word
             return indices
 
-
-
-    def get_transcript(self,file:PathLike|str,length:int = DEFAULT_LENGTH):
+    def get_transcript(self,file:PathLike|str,length:int|None = DEFAULT_LENGTH):
         cls = EntryData
         helpers = cls._transcript_helpers
         for resource in self.json['resources']:
@@ -352,7 +351,7 @@ class EntryData(object,metaclass = ReprOverride):
         self_or_cls,
         filename:PathLike|str,
         get_new:bool = False,
-        length:int = DEFAULT_LENGTH,
+        length:int|None = DEFAULT_LENGTH,
         ):
         if not isinstance(get_new,bool):
             log_error(TypeError(f"get_new should be of type bool, not {type(get_new)}"))
