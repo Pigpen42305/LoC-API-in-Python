@@ -7,9 +7,9 @@ PACKAGE_DIRECTORY = dirname(__file__)
 requirements = join(PACKAGE_DIRECTORY,'requirements.txt')
 
 def user_choice() -> bool:
-    """Prompts the user to confirm before installing requests"""
+    """Prompts the user to confirm before installing requirements"""
     print("Please install the requirements to use this package")
-    while (user := input("Do you want to install the requirements from the requirements.txt in the package? (Y/N)\n>> ")):
+    while (user := input("Do you want to install the requirements from the requirements.txt in this package? (Y/N)\n>> ")):
         match user:
             case 'Y':
                 return True

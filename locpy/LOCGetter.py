@@ -21,8 +21,8 @@ def get_loc_json():
         time.sleep(3)
         end = time.perf_counter()
         minutes,seconds = divmod(int(end - start),60)
-        print(f"Page {num} completed in {minutes:01}:{seconds:02}")
-
+        print(f"\rPage {num} completed in {minutes:01}:{seconds:02}",end='')
+    print()
 
     for index,data in enumerate(pages):
         with open(PAGE_FILES[index],'w') as file:
@@ -45,7 +45,8 @@ def short_page(jsonfile,*save_keys):
         with open(SHORT_PAGE_FILES[index],'w') as file:
             json.dump(data,file,indent=4)
 
-        print(f'_{index + 1}_page.json was saved!')
+        print(f'\r_{index + 1}_page.json was saved!',end='')
+    print()
 
 def MAIN(*significant_keys):
     if len(significant_keys) == 0: significant_keys = ('results',)
