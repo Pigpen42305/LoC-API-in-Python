@@ -1,11 +1,13 @@
 import os
 from charset_normalizer.api import from_bytes
+from typing import Never
 
 __all__ = [
     'to_start',
     'to_package',
     'to_pages',
     'log_error',
+    'final_log_error',
     'DATA_PKL',
     'SHORT_PAGE_FILES',
     'PAGE_FILES',
@@ -40,7 +42,7 @@ def to_pages():
         log_error(Error)
         raise Error
 
-def log_error(error:Exception|None,bytedata:bytes|None = None,encoding:str|None = None):
+def log_error(error:Exception|None,bytedata:bytes|None = None,encoding:str|None = None) -> Never|None:
     if isinstance(error,Exception):
         to_start()
 
@@ -58,6 +60,7 @@ def log_error(error:Exception|None,bytedata:bytes|None = None,encoding:str|None 
         
         raise error
 
-
-
-
+def final_log_error(error:Exception|None,bytedata:bytes|None = None,encoding:str|None = None) -> Never|None:
+    if isinstance(error,Exception):
+        log_error(error,bytedata,encoding)
+        exit(1)
