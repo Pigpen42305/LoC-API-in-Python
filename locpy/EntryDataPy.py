@@ -190,7 +190,7 @@ class EntryData(object,metaclass = ReprOverride):
             for pattern,target in patterns.items():
                 if pattern == 'file':
                     bracketed = set(re.findall(target,data))                      # Make a set of items that are in bracketed
-                    file_changes = filter(lambda x:b'_' in x,bracketed)           # Filter out transcript context marks, leaving file change markers
+                    file_changes = filter(lambda x:b'_' in x or b':' in x,bracketed)           # Filter out transcript context marks, leaving file change markers and timestamps
                     for element in file_changes: data = data.replace(element,b'') # Remove file change markers
                 else:
                     data = re.sub(target,b'',data)
@@ -320,18 +320,54 @@ class EntryData(object,metaclass = ReprOverride):
                     building = word
             return indices
 
-    def get_transcript(self,file:PathLike|str,length:int|None = DEFAULT_LENGTH):
+    def get_transcript(self,file:PathLike|str,length:int|None = DEFAULT_LENGTH) -> None:
         cls = EntryData
         helpers = cls._transcript_helpers
-        for resource in self.json['resources']:
+        if self.index in range(145,158) or self.index == 17:
+            raise NotImplementedError(f"Item index: {self.index} has no transcript!")
+        elif self.index == 14:
+            f1,f2 = '__0' + file,'__1' + file
+            transcripts = {}
+            for resource in self.resources:
+                if resource['caption'] == '1/2 transcript':
+                    print('Getting transcript...',end='',flush=True)
+                    resp = requests.get(resource["fulltext"])
+                    print('\rWaiting...' + ' ' * 11,end='',flush=True)
+                    sleep(2)
+                    print('\rDone!' + ' ' * 16,end='',flush=True)
+                    transcripts[0] = helpers._save_transcript(resp.content,f1,length)
+                elif resource['caption'] == '2/2 transcript':
+                    print('\rGetting transcript...',end='',flush=True)
+                    resp = requests.get(resource["fulltext"])
+                    print('\rWaiting...' + ' ' * 11,end='',flush=True)
+                    sleep(2)
+                    print('\rDone!' + ' ' * 16,flush=True)
+                    transcripts[1] = helpers._save_transcript(resp.content,f2,length)
+            encodemark = len("utf_8\n\n\n")
+            with (
+                open(f1,'r',encoding='utf_8') as part1,
+                open(f2,'r',encoding='utf_8') as part2,
+                open(file,'w',encoding='utf_8') as output,
+            ):
+                output.write(part1.read(encodemark))
+                part2.read(encodemark)
+
+                for line in part1: output.write(line)
+                for line in part2: output.write(line)
+
+            from os import remove
+            remove(f1)
+            remove(f2)
+            return
+                
+        for resource in self.resources:
             if 'transcript' in resource['caption']:
+                print('Getting transcript...',end='',flush=True)
                 resp = requests.get(resource["fulltext"])
+                print('\rWaiting...' + ' ' * 11,end='',flush=True)
                 sleep(2)
+                print('\rDone!' + ' ' * 16,flush=True)
                 return helpers._save_transcript(resp.content,file,length)
-        else:
-            Error = KeyError(f"No transcript found for {self}")
-            Error.add_note(json.dumps(self.json,indent=4))
-            log_error(Error)
 
     @staticmethod
     def read_transcript(filename:PathLike|str) -> TextIOWrapper:
@@ -363,6 +399,3 @@ class EntryData(object,metaclass = ReprOverride):
         else:
             return self_or_cls.read_transcript(filename)
         
-if __name__ == '__main__':
-   # Test code
-   pass
