@@ -4,6 +4,7 @@ To implement new features, define ne
 """
 from io import TextIOWrapper,BytesIO
 from os import PathLike, path, getcwd
+from pprint import pformat
 from types import NoneType
 from typing import Any
 import json
@@ -178,22 +179,23 @@ class EntryData(object,metaclass = ReprOverride):
 
         @staticmethod
         def process_xml(data:bytes) -> tuple[bytes,str]:
-            
             patterns = {
                 'tags':br'<[^>]+>',          # Removes xml tags
-                'page':br'(0{2}\d{2})',      # Removes page indicators
+                'page':br'(0\d{3})',         # Removes page indicators
                 'time':br'\n\d\d:\d\d:\d\d', # Removes timestamps
                 'file':br'\[[^\]]+\]',       # Finds anything in square brackets
             }
 
             # Remove matches to the removal patterns
+            
             for pattern,target in patterns.items():
                 if pattern == 'file':
-                    bracketed = set(re.findall(target,data))                      # Make a set of items that are in bracketed
-                    file_changes = filter(lambda x:b'_' in x or b':' in x,bracketed)           # Filter out transcript context marks, leaving file change markers and timestamps
-                    for element in file_changes: data = data.replace(element,b'') # Remove file change markers
+                    bracketed = set(re.findall(target,data))                         # Make a set of items that are in bracketed
+                    file_changes = filter(lambda x:b'_' in x or (b':' in x and b'nb:' not in x),bracketed) # Filter out transcript context marks, leaving file change markers and timestamps
+                    for element in file_changes: data = data.replace(element,b'')    # Remove file change markers
                 else:
                     data = re.sub(target,b'',data)
+        
 
             # Remove the HTML comment at the top
             data = data.replace(b'-->',b'',1)
@@ -211,7 +213,7 @@ class EntryData(object,metaclass = ReprOverride):
                         names.add(b'\x00' + name)
             names = sorted(list(names),key=len)
             for name in names:
-                for char in {b'. ',b'? ',b', ',b'! ',b'\n'}:
+                for char in [b'. ',b'? ',b', ',b'! ',b'\n',b' ']:
                     data = data.replace(char + name[1:],char.strip() + name)
 
             # Remove all remaining newlines
@@ -226,30 +228,39 @@ class EntryData(object,metaclass = ReprOverride):
 
             # Clean up before trimming
             data = data.strip()
-
             # Trim metadata
             datalist = data.split(b'\n')
             del datalist[0:2]
-            
-            # Separate the final line by 'sentences'.
-            # Remove any improper sentences to trim metadata 
-            def filtering(data:tuple[int,bytes]):
-                i,x = data
-                conditions = [
-                    not x.endswith(b'Inc'),
-                    (x.startswith(b' ') or i == 0),
-                    not (x.isupper() and x.islower()),
-                    b'www' not in x,
-                ]
-                return all(conditions)
-            finalline = datalist[-1].split(b'.')
-            final = dict(filter(filtering,enumerate(finalline)))
+            if b'.' in datalist[-1]:
+                # Separate the final line by 'sentences'.
+                # Remove any improper sentences to trim metadata 
+                def filtering(data:tuple[int,bytes]):
+                    i,x = data
+                    conditions = [
+                        not x.endswith(b'Inc'),
+                        (x.startswith(b' ') or i == 0),
+                        not (x.isupper() and x.islower()),
+                        b'www' not in x,
+                    ]
+                    return all(conditions)
 
-            # Reconnect the data
-            datalist[-1] = b'.'.join(final.values()) + b'.'
-            data = b'\n'.join(datalist)
+                finalline = datalist[-1].split(b'.')
+                final = dict(filter(filtering,enumerate(finalline)))
+
+                # Reconnect the data
+                datalist[-1] = b'.'.join(final.values()) + b'.'
+                data = b'\n'.join(datalist)
+            
+            if b'END OF INTERVIEW' in data:
+                data = data.partition(b'END OF INTERVIEW')[0]
+            if data.endswith(b' Council.\n'):
+                data.removeprefix(b' Council.\n')
+                data = data + b' \n'
+
 
             return (data,from_bytes(data)[0].encoding)
+            
+
 
         @staticmethod
         def decoder(content:bytes,encoding:str) -> str: 
@@ -320,25 +331,27 @@ class EntryData(object,metaclass = ReprOverride):
                     building = word
             return indices
 
-    def get_transcript(self,file:PathLike|str,length:int|None = DEFAULT_LENGTH) -> None:
+    def get_transcript(self,file:PathLike|str,*,length:int|None = DEFAULT_LENGTH,timeout:int|None = None) -> None:
         cls = EntryData
         helpers = cls._transcript_helpers
         if self.index in range(145,158) or self.index == 17:
             raise NotImplementedError(f"Item index: {self.index} has no transcript!")
+        elif self.index in {21,73,*range(108,145)}:
+            raise NotImplementedError(f"Item index: {self.index} does not provide a fulltext!")
         elif self.index == 14:
             f1,f2 = '__0' + file,'__1' + file
             transcripts = {}
             for resource in self.resources:
                 if resource['caption'] == '1/2 transcript':
                     print('Getting transcript...',end='',flush=True)
-                    resp = requests.get(resource["fulltext"])
+                    resp = requests.get(resource["fulltext"],timeout=timeout)
                     print('\rWaiting...' + ' ' * 11,end='',flush=True)
                     sleep(2)
                     print('\rDone!' + ' ' * 16,end='',flush=True)
                     transcripts[0] = helpers._save_transcript(resp.content,f1,length)
                 elif resource['caption'] == '2/2 transcript':
                     print('\rGetting transcript...',end='',flush=True)
-                    resp = requests.get(resource["fulltext"])
+                    resp = requests.get(resource["fulltext"],timeout=timeout)
                     print('\rWaiting...' + ' ' * 11,end='',flush=True)
                     sleep(2)
                     print('\rDone!' + ' ' * 16,flush=True)
@@ -363,7 +376,10 @@ class EntryData(object,metaclass = ReprOverride):
         for resource in self.resources:
             if 'transcript' in resource['caption']:
                 print('Getting transcript...',end='',flush=True)
-                resp = requests.get(resource["fulltext"])
+                try:
+                    resp = requests.get(resource["fulltext"],timeout=timeout)
+                except KeyError as Error:
+                    log_error(Error,pformat(resource,indent=4).encode('utf-8'),'utf-8')
                 print('\rWaiting...' + ' ' * 11,end='',flush=True)
                 sleep(2)
                 print('\rDone!' + ' ' * 16,flush=True)
@@ -386,16 +402,18 @@ class EntryData(object,metaclass = ReprOverride):
     def open(
         self_or_cls,
         filename:PathLike|str,
+        *,
         get_new:bool = False,
         length:int|None = DEFAULT_LENGTH,
+        timeout:int|None = None,
         ):
         if not isinstance(get_new,bool):
             log_error(TypeError(f"get_new should be of type bool, not {type(get_new)}"))
         if get_new:
             if not isinstance(self_or_cls,EntryData):
                 log_error(AttributeError("You cannot call EntryData.open on the class if get_new is set to True"))
-            self_or_cls.get_transcript(filename,length)
-            return self_or_cls.open(filename)
+            self_or_cls.get_transcript(filename,length,timeout=timeout)
+            return self_or_cls.open(filename,timeout=timeout)
         else:
             return self_or_cls.read_transcript(filename)
         
