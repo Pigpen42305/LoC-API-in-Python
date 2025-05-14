@@ -350,14 +350,14 @@ class EntryData(object,metaclass = ReprOverride):
                     resp = requests.get(resource["fulltext"],timeout=timeout)
                     print('\rWaiting...' + ' ' * 11,end='',flush=True)
                     sleep(2)
-                    print('\rDone!' + ' ' * 16,end='',flush=True)
+                    print(f'\r14-1 Done!' + ' ' * 16,end='',flush=True)
                     transcripts[0] = helpers._save_transcript(resp.content,f1,length)
                 elif resource['caption'] == '2/2 transcript':
                     print('\rGetting transcript...',end='',flush=True)
                     resp = requests.get(resource["fulltext"],timeout=timeout)
                     print('\rWaiting...' + ' ' * 11,end='',flush=True)
                     sleep(2)
-                    print('\rDone!' + ' ' * 16,flush=True)
+                    print('\r14-2 Done!' + ' ' * 16,flush=True)
                     transcripts[1] = helpers._save_transcript(resp.content,f2,length)
             encodemark = len("utf_8\n\n\n")
             with (
@@ -385,7 +385,7 @@ class EntryData(object,metaclass = ReprOverride):
                     log_error(Error,pformat(resource,indent=4).encode('utf-8'),'utf-8')
                 print('\rWaiting...' + ' ' * 11,end='',flush=True)
                 sleep(2)
-                print('\rDone!' + ' ' * 16,flush=True)
+                print(f'\r{self.index} Done!' + ' ' * 16,flush=True)
                 return helpers._save_transcript(resp.content,file,length)
 
     @staticmethod
