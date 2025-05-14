@@ -5,6 +5,8 @@ The items must provide resources, and a transcript in those resources with a ful
 """
 from os import chdir,mkdir
 
+import requests
+
 try:
     chdir('TRANSCRIPTS')
 except FileNotFoundError:
@@ -14,6 +16,16 @@ except FileNotFoundError:
 from locpy import EntryData
 
 
+""" # If something doesn't work, put a # in front of this line!
+
+# Put the index that failed or a enough of the title to find the item
+SPECIFIC_ENTRY: int | str = 41
+
+item = EntryData.entry(SPECIFIC_ENTRY)
+item.get_transcript(item.title + '.txt',timeout=10)
+exit()
+# """
+
 skipped = []
 for title,item in EntryData.title_instances.items():
     try:
@@ -22,7 +34,7 @@ for title,item in EntryData.title_instances.items():
         pass
     except KeyError:
         print(f'\r<--{item.index} RAISES AN ERROR!!!-->')
-    except TimeoutError:
+    except requests.exceptions.ReadTimeout:
         skipped.append((title,item))
         print(f'\r<--{item.index} SKIPPED FOR NOW-->')
 
@@ -32,10 +44,10 @@ while len(skipped) > 0:
     skipped = []
     for title,item in current:
         try:
-            item.get_transcript(title + '.txt',timeout=5)
+            item.get_transcript(title + '.txt',timeout=10)
         except NotImplementedError:
             pass
-        except TimeoutError:
+        except requests.exceptions.ReadTimeout:
             skipped.append((title,item))
             print(f'\r<--{item.index} SKIPPED FOR NOW-->')
     if current == skipped:

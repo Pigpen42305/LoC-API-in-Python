@@ -231,25 +231,28 @@ class EntryData(object,metaclass = ReprOverride):
             # Trim metadata
             datalist = data.split(b'\n')
             del datalist[0:2]
-            if b'.' in datalist[-1]:
-                # Separate the final line by 'sentences'.
-                # Remove any improper sentences to trim metadata 
-                def filtering(data:tuple[int,bytes]):
-                    i,x = data
-                    conditions = [
-                        not x.endswith(b'Inc'),
-                        (x.startswith(b' ') or i == 0),
-                        not (x.isupper() and x.islower()),
-                        b'www' not in x,
-                    ]
-                    return all(conditions)
+            try:
+                if b'.' in datalist[-1]:
+                    # Separate the final line by 'sentences'.
+                    # Remove any improper sentences to trim metadata 
+                    def filtering(data:tuple[int,bytes]):
+                        i,x = data
+                        conditions = [
+                            not x.endswith(b'Inc'),
+                            (x.startswith(b' ') or i == 0),
+                            not (x.isupper() and x.islower()),
+                            b'www' not in x,
+                        ]
+                        return all(conditions)
 
-                finalline = datalist[-1].split(b'.')
-                final = dict(filter(filtering,enumerate(finalline)))
+                    finalline = datalist[-1].split(b'.')
+                    final = dict(filter(filtering,enumerate(finalline)))
 
-                # Reconnect the data
-                datalist[-1] = b'.'.join(final.values()) + b'.'
-                data = b'\n'.join(datalist)
+                    # Reconnect the data
+                    datalist[-1] = b'.'.join(final.values()) + b'.'
+                    data = b'\n'.join(datalist)
+            except IndexError:
+                pass
             
             if b'END OF INTERVIEW' in data:
                 data = data.partition(b'END OF INTERVIEW')[0]
