@@ -2,3 +2,5 @@ __pycache__
 TESTING
 test.py
 *.json
+DATA.pkl
+ERROR_LOG.txt
