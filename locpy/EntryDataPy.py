@@ -257,7 +257,7 @@ class EntryData(object,metaclass = ReprOverride):
             if b'END OF INTERVIEW' in data:
                 data = data.partition(b'END OF INTERVIEW')[0]
             if data.endswith(b' Council.\n'):
-                data.removeprefix(b' Council.\n')
+                data.removesuffix(b' Council.\n')
                 data = data + b' \n'
 
 
