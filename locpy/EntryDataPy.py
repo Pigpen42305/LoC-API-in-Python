@@ -256,14 +256,10 @@ class EntryData(object,metaclass = ReprOverride):
             
             if b'END OF INTERVIEW' in data:
                 data = data.partition(b'END OF INTERVIEW')[0]
-            if data.endswith(b' Council.\n'):
-                data.removesuffix(b' Council.\n')
-                data = data + b' \n'
-
+            data = data.strip().removesuffix(b' Council.')
 
             return (data,from_bytes(data)[0].encoding)
             
-
 
         @staticmethod
         def decoder(content:bytes,encoding:str) -> str: 
@@ -350,14 +346,14 @@ class EntryData(object,metaclass = ReprOverride):
                     resp = requests.get(resource["fulltext"],timeout=timeout)
                     print('\rWaiting...' + ' ' * 11,end='',flush=True)
                     sleep(2)
-                    print(f'\r14-1 Done!' + ' ' * 16,end='',flush=True)
+                    print(f'\r14 Half Done!' + ' ' * 16,end='',flush=True)
                     transcripts[0] = helpers._save_transcript(resp.content,f1,length)
                 elif resource['caption'] == '2/2 transcript':
                     print('\rGetting transcript...',end='',flush=True)
                     resp = requests.get(resource["fulltext"],timeout=timeout)
                     print('\rWaiting...' + ' ' * 11,end='',flush=True)
                     sleep(2)
-                    print('\r14-2 Done!' + ' ' * 16,flush=True)
+                    print('\r14 Done!' + ' ' * 16,flush=True)
                     transcripts[1] = helpers._save_transcript(resp.content,f2,length)
             encodemark = len("utf_8\n\n\n")
             with (
